@@ -8,6 +8,7 @@ opt-level = 3
 
 [profile.dev]
 opt-level = 1
+debug-assertions = true
 
 # This is used by trunk as it doesn't support custom profiles: https://github.com/trunk-rs/trunk/issues/605
 # xbuild also uses this profile for building android AABs because I couldn't find a configuration for it
@@ -26,33 +27,35 @@ codegen-units = 1
 strip = true
 
 [features]
-dev = [
-    "bevy/dynamic_linking",
-]
+dev = ["bevy/dynamic_linking"]
 
 [dependencies]
 bevy = { version = "0.13", default-features = false, features = [
-    "animation",
-    "bevy_asset",
-    "bevy_gilrs",
-    "bevy_scene",
-    "bevy_winit",
-    "bevy_core_pipeline",
-    # "bevy_pbr",
-    # "bevy_gltf",
-    "bevy_render",
-    "bevy_sprite",
-    "bevy_text",
-    "bevy_ui",
-    "multi-threaded",
-    "png",
-    "hdr",
-    "x11",
-    "bevy_gizmos",
-    "tonemapping_luts",
-    "default_font",
-    "webgl2",
-    "bevy_debug_stepping",
+  "animation",
+  "bevy_asset",
+  "bevy_gilrs",
+  "bevy_scene",
+  "bevy_winit",
+  "bevy_core_pipeline",
+  # "bevy_pbr",
+  # "bevy_gltf",
+  "bevy_render",
+  "bevy_sprite",
+  "bevy_text",
+  "bevy_ui",
+  "multi-threaded",
+  "png",
+  "hdr",
+  "x11",
+  "bevy_gizmos",
+  "tonemapping_luts",
+  "default_font",
+  "webgl2",
+  "bevy_debug_stepping",
 ] }
+bevy-inspector-egui = "0.24.0"
 bevy_prototype_lyon = "0.11.0"
 fences = { version = "0.1.0", path = "../fences" }
+
+[dev-dependencies]
+bevy-inspector-egui = "0.24.0"
