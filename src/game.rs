@@ -1,4 +1,5 @@
 use bevy::{prelude::*, sprite::Anchor};
+use bevy_mod_picking::prelude::*;
 use bevy_prototype_lyon::{prelude::*, shapes};
 use fences::{board::Fence, solver::Idx, BoardGeom, FencesSolver};
 
@@ -6,6 +7,9 @@ pub struct BoardPlugin;
 impl Plugin for BoardPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BoardAssets>()
+            .add_plugins(DefaultPickingPlugins)
+            .add_plugins(ShapePlugin)
+            .insert_resource(DebugPickingMode::Normal)
             .insert_resource(Board::new(
                 "3#33    
 0 0 0 y
@@ -97,6 +101,7 @@ fn board_setup(
     commands
         .spawn((
             Grid,
+            PickableBundle::default(),
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shapes::Rectangle {
                     extents: Vec2 {
@@ -133,6 +138,7 @@ fn board_setup(
                 p.spawn((
                     Cell(idx),
                     Name::new(format!("Cell({idx:?})")),
+                    PickableBundle::default(),
                     ShapeBundle {
                         path: GeometryBuilder::build_as(&shapes::Rectangle {
                             extents: Vec2::splat(scale - 10.),
@@ -209,7 +215,6 @@ fn board_setup(
 struct EdgeSelected;
 
 fn edge_interaction_system(
-    _board: Res<Board>,
     mut commands: Commands,
     mut mouse_events: EventReader<CursorMoved>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
@@ -273,7 +278,7 @@ impl Board {
     }
 }
 fn board_update_system(
-    board: Res<Board>,
+    mut board: ResMut<Board>,
     mut edges: Query<(&mut Fill, &Edge)>,
     assets: Res<BoardAssets>,
 ) {
@@ -306,4 +311,5 @@ fn board_update_system(
             assets.edge_colors.2
         }
     }
+    board.1 = board.0.moves().len();
 }
