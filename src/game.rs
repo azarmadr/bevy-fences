@@ -1,6 +1,8 @@
-use bevy::{prelude::*, sprite::Anchor};
+use bevy::{
+    prelude::*,
+    sprite::{Anchor, MaterialMesh2dBundle},
+};
 use bevy_mod_picking::prelude::*;
-use bevy_prototype_lyon::{prelude::*, shapes};
 use fences::{board::Fence, solver::Idx, BoardGeom, FencesSolver};
 
 pub struct BoardPlugin;
@@ -8,7 +10,6 @@ impl Plugin for BoardPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BoardAssets>()
             .add_plugins(DefaultPickingPlugins)
-            .add_plugins(ShapePlugin)
             .insert_resource(DebugPickingMode::Normal)
             .insert_resource(Board::new(
                 "3#33    
@@ -18,8 +19,8 @@ impl Plugin for BoardPlugin {
             .add_systems(
                 Update,
                 (
-                    edge_interaction_system,
-                    edge_click_system,
+                    // edge_interaction_system,
+                    // edge_click_system,
                     board_update_system,
                 ),
             )
@@ -83,6 +84,8 @@ fn board_setup(
     board: Res<Board>,
     assets: Res<BoardAssets>,
     windows: Query<&Window>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let window = windows.single();
     let window_size = (window.resolution.height(), window.resolution.width());
@@ -102,17 +105,17 @@ fn board_setup(
         .spawn((
             Grid,
             PickableBundle::default(),
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&shapes::Rectangle {
-                    extents: Vec2 {
-                        x: board_size.1 as f32 * (scale * 1.2),
-                        y: board_size.0 as f32 * (scale * 1.2),
-                    },
-                    origin: RectangleOrigin::Center,
-                }),
+            MaterialMesh2dBundle {
+                mesh: meshes
+                    .add(Rectangle::new(
+                        board_size.1 as f32 * scale * 1.2,
+                        board_size.0 as f32 * scale * 1.2,
+                    ))
+                    .into(),
+                transform: Transform::default(),
+                material: materials.add(ColorMaterial::from(Color::BLACK)),
                 ..default()
             },
-            Fill::color(Color::BLACK),
         ))
         .with_children(|p| {
             for x in 0..=board_size.1 {
@@ -120,17 +123,12 @@ fn board_setup(
                     p.spawn((
                         Node((y, x)),
                         Name::new(format!("Node({x},{y})")),
-                        ShapeBundle {
-                            path: GeometryBuilder::build_as(&shapes::Circle {
-                                radius: 10.,
-                                ..default()
-                            }),
-                            spatial: SpatialBundle::from_transform(
-                                Transform::default().with_translation(get_node(x, y, 1.)),
-                            ),
-                            ..Default::default()
+                        MaterialMesh2dBundle {
+                            mesh: meshes.add(Circle::new(10.)).into(),
+                            material: materials.add(ColorMaterial::from(Color::WHITE)),
+                            transform: Transform::default().with_translation(get_node(x, y, 1.)),
+                            ..default()
                         },
-                        Fill::color(Color::WHITE),
                     ));
                 }
             }
@@ -139,24 +137,19 @@ fn board_setup(
                     Cell(idx),
                     Name::new(format!("Cell({idx:?})")),
                     PickableBundle::default(),
-                    ShapeBundle {
-                        path: GeometryBuilder::build_as(&shapes::Rectangle {
-                            extents: Vec2::splat(scale - 10.),
-                            origin: RectangleOrigin::Center,
-                        }),
-                        spatial: SpatialBundle::from_transform(
-                            Transform::default().with_translation(
-                                get_node(idx.1, idx.0, 1.)
-                                    + Vec3 {
-                                        x: scale / 2.,
-                                        y: -scale / 2.,
-                                        z: 0.,
-                                    },
-                            ),
+                    MaterialMesh2dBundle {
+                        mesh: meshes.add(Rectangle::new(scale - 10., scale - 10.)).into(),
+                        material: materials.add(ColorMaterial::from(Color::NONE)),
+                        transform: Transform::default().with_translation(
+                            get_node(idx.1, idx.0, 1.)
+                                + Vec3 {
+                                    x: scale / 2.,
+                                    y: -scale / 2.,
+                                    z: 0.,
+                                },
                         ),
                         ..default()
                     },
-                    Fill::color(Color::NONE),
                 ))
                 .with_children(|p| {
                     if let Some(v) = t {
@@ -176,20 +169,12 @@ fn board_setup(
                 });
             }
             for ((dir, x, y), v) in board.fences_iter() {
-                let mut origin = Vec2 {
-                    y: 0.,
-                    x: scale / 2.,
-                };
-                let mut extents = Vec2 { x: scale, y: 10. };
+                let (mut w, mut h) = (scale, 10.);
+                let (mut dw, mut dh) = (scale / 2., 0.);
                 if dir == 1 {
-                    extents = extents.yx();
-                    origin = origin.yx();
-                    origin.y = -origin.y;
+                    std::mem::swap(&mut dw, &mut dh);
+                    std::mem::swap(&mut w, &mut h);
                 }
-                let rect = shapes::Rectangle {
-                    origin: RectangleOrigin::CustomCenter(origin),
-                    extents,
-                };
                 p.spawn((
                     Name::new(format!("E({dir}, {x}, {y})")),
                     if dir == 0 {
@@ -197,15 +182,21 @@ fn board_setup(
                     } else {
                         Edge::V((x, y))
                     },
-                    ShapeBundle {
-                        path: GeometryBuilder::build_as(&rect),
-                        spatial: SpatialBundle::from_transform(
-                            Transform::default().with_translation(get_node(y, x, 1.)),
+                    PickableBundle::default(),
+                    //On::<Pointer<Click>>
+                    MaterialMesh2dBundle {
+                        mesh: meshes.add(Rectangle::new(w, h)).into(),
+                        material: materials.add(ColorMaterial::from(assets.edge_color(v))),
+                        transform: Transform::default().with_translation(
+                            get_node(y, x, 1.)
+                                + Vec3 {
+                                    x: dw,
+                                    y: -dh,
+                                    z: 0.,
+                                },
                         ),
                         ..default()
                     },
-                    Fill::color(assets.edge_color(v)),
-                    Stroke::new(Color::NONE, 3.),
                 ));
             }
         });
@@ -214,6 +205,7 @@ fn board_setup(
 #[derive(Component)]
 struct EdgeSelected;
 
+/*
 fn edge_interaction_system(
     mut commands: Commands,
     mut mouse_events: EventReader<CursorMoved>,
@@ -271,6 +263,7 @@ fn edge_click_system(
         println!("{}", board.0);
     }
 }
+*/
 
 impl Board {
     fn is_updated(&self) -> bool {
@@ -279,8 +272,9 @@ impl Board {
 }
 fn board_update_system(
     mut board: ResMut<Board>,
-    mut edges: Query<(&mut Fill, &Edge)>,
+    mut edges: Query<(&mut Handle<ColorMaterial>, &Edge)>,
     assets: Res<BoardAssets>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     if !board.is_changed() || !board.is_updated() {
         return;
@@ -305,11 +299,11 @@ fn board_update_system(
                 }
             })
             .unwrap();
-        fill.color = if value {
+        *fill = materials.add(ColorMaterial::from(if value {
             assets.edge_colors.1
         } else {
             assets.edge_colors.2
-        }
+        }));
     }
     board.1 = board.0.moves().len();
 }
